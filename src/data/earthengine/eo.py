@@ -7,6 +7,9 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, List, Optional, Union
 
+from google.oauth2 import service_account
+from pathlib import Path
+
 import ee
 import numpy as np
 import pandas as pd
@@ -254,16 +257,26 @@ def create_ee_image(
 
     return ee.Image.cat(total_image_list)
 
+    
 
 def get_ee_credentials():
-    gcp_sa_key = os.environ.get("GCP_SA_KEY")
-    if gcp_sa_key is not None:
-        gcp_sa_email = json.loads(gcp_sa_key)["client_email"]
-        print(f"Logging into EarthEngine with {gcp_sa_email}")
-        return ee.ServiceAccountCredentials(gcp_sa_email, key_data=gcp_sa_key)
+    # Resolve path to project root
+    project_root = Path(__file__).resolve().parents[3]
+    service_account_path = project_root / "private_key.json"
+
+    if service_account_path.exists():
+        print(f"Logging into Earth Engine using service account: {service_account_path}")
+        credentials = service_account.Credentials.from_service_account_file(
+            str(service_account_path),
+            scopes=[
+                'https://www.googleapis.com/auth/earthengine',
+            ]
+        )
+        return credentials
     else:
         print("Logging into EarthEngine with default credentials")
-        return "persistent"
+        return "persistent" 
+
 
 
 class EarthEngineExporter:
@@ -373,7 +386,7 @@ class EarthEngineExporter:
                 ee.batch.Export.image.toAsset(
                 image=img.clip(polygon),
                 description=description,
-                assetId=f"users/chemuttjose/{str(polygon_identifier)}",  # Update with your EE username
+                assetId=f"projects/cropmapping-365811/assets/rwanda/{str(polygon_identifier)}",  # Update with your EE username
                 region=polygon,
                 scale=10,
                 maxPixels=1e13

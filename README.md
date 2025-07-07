@@ -57,6 +57,9 @@ This script will:
 - Save `.npz` patch datasets for `train`, `val`, and `test` splits
 
 ### Folder Structure Example
+- Place GEE service account key in the root directory in json format.
+- Configure the ee.batch.Export.image.toAsset() function in eo.py to your corresonding GEE assetid
+- Configure the name of project ID in EE_PROJECT vairable inside src/data/config.py to match project id name.
 
 ```
 data/
