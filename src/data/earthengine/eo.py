@@ -179,29 +179,31 @@ def create_ee_image(
     days_per_timestep: int = DAYS_PER_TIMESTEP,
 ) -> ee.Image:
     """
-    Returns an ee.Image which we can then export.
-    This image will contain S1, S2, ERA5 and Dynamic World data
-    between start_date and end_date, in intervals of
-    days_per_timestep. Each timestep will be a different channel in the
-    image (e.g. if I have 3 timesteps, then I'll have VV, VV_1, VV_2 for the
-    S1 VV bands). The static in time SRTM bands will also be in the image.
+    Returns an ee.Image composed of fixed number of 30-day timesteps between start_date and end_date.
+    Number of timesteps is determined by rounding up, so leftover days are included in the last step.
     """
+    from math import ceil
+ 
     image_collection_list: List[ee.Image] = []
-    cur_date = start_date
-    cur_end_date = cur_date + timedelta(days=days_per_timestep)
-
-    # We get all the S1 images in an exaggerated date range. We do this because
-    # S1 data is sparser, so we will pull from outside the days_per_timestep
-    # range if we are missing data within that range
+ 
+    total_days = (end_date - start_date).days
+    num_steps = ceil(total_days / days_per_timestep)
+ 
+    print(f"Generating {num_steps} steps of {days_per_timestep} days each from {start_date} to {end_date}")
+ 
     vv_imcol, vh_imcol = get_s1_image_collection(
         polygon, start_date - timedelta(days=31), end_date + timedelta(days=31)
     )
     tc_imcol = get_terraclim_image_collection(polygon, start_date, end_date)
-
-    while cur_end_date <= end_date:
+ 
+    for step in range(num_steps):
+        cur_date = start_date + timedelta(days=step * days_per_timestep)
+        cur_end_date = cur_date + timedelta(days=days_per_timestep)
+ 
+        print(f"[Step {step + 1}] Processing: {cur_date} to {cur_end_date}")
+ 
         image_list: List[ee.Image] = []
-
-        # first, the S1 image which gets the entire s1 collection
+ 
         image_list.append(
             get_single_s1_image(
                 region=polygon,
@@ -211,6 +213,7 @@ def create_ee_image(
                 vh_imcol=vh_imcol,
             )
         )
+ 
         for image_function in TIME_IMAGE_FUNCTIONS:
             if image_function == "terraclim":
                 image_list.append(
@@ -226,38 +229,16 @@ def create_ee_image(
                 image_list.append(
                     image_function(region=polygon, start_date=cur_date, end_date=cur_end_date)
                 )
-
+ 
         image_collection_list.append(ee.Image.cat(image_list))
-        cur_date += timedelta(days=days_per_timestep)
-        cur_end_date += timedelta(days=days_per_timestep)
-
-    # now, we want to take our image collection and append the bands into a single image
+ 
+    print(f"Total fixed timesteps exported: {num_steps}")
+ 
     imcoll = ee.ImageCollection(image_collection_list)
     combine_bands_function = make_combine_bands_function(ALL_DYNAMIC_IN_TIME_BANDS)
     img = ee.Image(imcoll.iterate(combine_bands_function))
-
-    # finally, we add the static in time images
-    total_image_list: List[ee.Image] = [img]
-    '''for space_image_function in SPACE_IMAGE_FUNCTIONS:
-        total_image_list.append(
-            space_image_function(
-                region=polygon,
-                start_date=start_date - timedelta(days=31),
-                end_date=end_date + timedelta(days=31),
-            )
-        )
-    for static_image_function in STATIC_IMAGE_FUNCTIONS:
-        total_image_list.append(
-            static_image_function(
-                region=polygon,
-                start_date=start_date - timedelta(days=31),
-                end_date=end_date + timedelta(days=31),
-            )
-        )'''
-
-    return ee.Image.cat(total_image_list)
-
-    
+ 
+    return ee.Image.cat([img])
 
 def get_ee_credentials():
     # Resolve path to project root

@@ -1,18 +1,21 @@
 # run_export_rwanda.py
 import timeit
 start_time = timeit.default_timer()
+import time
 from datetime import date
 import geopandas as gpd
+import ee
 from src.data.earthengine.eo import EarthEngineExporter
 
 print('Necessary libraries imported')
 
 # Parameters
 root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/'
-eyear = 2019
-season = 'B'
-start = date(eyear, 2, 1)
-end = date(eyear, 6, 30)
+syear = 2019
+eyear = 2020
+season = 'A'
+start = date(syear, 9, 1)
+end = date(eyear, 1, 31)
 
 # Load the shapefile
 gdf = gpd.read_file(f"{root}data/rwa_adm2_selected_districts.shp")
@@ -29,6 +32,43 @@ aoi_geojson_geometry = nyagatare_gdf.iloc[0].geometry.__geo_interface__
 # Initialize Earth Engine exporter
 exporter = EarthEngineExporter(mode="batch")
 
+def monitor_ee_tasks(poll_interval=30, max_duration=None):
+    """
+    Continuously monitor Earth Engine export tasks.
+    
+    Args:
+        poll_interval (int): Time in seconds between each poll.
+        max_duration (int or None): Maximum monitoring time in seconds (optional).
+    """
+    print("⏳ Monitoring Earth Engine export tasks...")
+    start_time = time.time()
+
+    while True:
+        tasks = ee.data.getTaskList()
+        statuses = {"RUNNING": 0, "READY": 0, "COMPLETED": 0, "FAILED": 0, "CANCELLED": 0}
+
+        for task in tasks:
+            state = task["state"]
+            if state in statuses:
+                statuses[state] += 1
+
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] "
+              f"RUNNING: {statuses['RUNNING']} | "
+              f"READY: {statuses['READY']} | "
+              f"COMPLETED: {statuses['COMPLETED']} | "
+              f"FAILED: {statuses['FAILED']} | "
+              f"CANCELLED: {statuses['CANCELLED']}", flush=True)
+
+        if statuses["RUNNING"] + statuses["READY"] == 0:
+            print("✅ All Earth Engine export tasks finished.", flush=True)
+            break
+
+        if max_duration is not None and (time.time() - start_time) > max_duration:
+            print("⚠️ Monitoring stopped: max duration reached.", flush=True)
+            break
+
+        time.sleep(poll_interval)
+
 # Export data for Nyagatare
 exporter.export_for_geo_json(
     geo_json=aoi_geojson_geometry,
@@ -36,6 +76,8 @@ exporter.export_for_geo_json(
     end_date=end,
     identifier=f"Rwanda_{season}{eyear}"
 )
+# Monitor task progress
+monitor_ee_tasks(poll_interval=120)
 
 print("Done! Elapsed time (hours):", (timeit.default_timer() - start_time) / 3600.0)
 

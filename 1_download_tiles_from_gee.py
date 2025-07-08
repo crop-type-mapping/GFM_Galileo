@@ -3,11 +3,12 @@ import timeit
 start_time = timeit.default_timer()
 # -------------------- PARAMETERS --------------------
 season = 'B'
-eyear = 2019
-filename = f'RWA_GFM_Multitemp_{season}{eyear}'
-gee_project = "projects/cropmapping-365811"
+eyear = 2025
+filename = f'Rwanda_{season}{eyear}'
+gee_projectpath = "projects/cropmapping-365811"
+gee_projectid = "cropmapping-365811"
 asset_folder = "rwanda"
-image_asset_id = f"{gee_project}/assets/{asset_folder}/{filename}"
+image_asset_id = f"{gee_projectpath}/assets/{asset_folder}/{filename}"
 root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/'
 # -------------------- EE AUTH --------------------
 import os
@@ -17,8 +18,10 @@ import geemap
 import geopandas as gpd
 from shapely.geometry import box
 from tqdm import tqdm
+from pathlib import Path
 
 # -------------------- EE AUTH --------------------
+'''
 def get_ee_credentials():
     gcp_sa_key = os.environ.get("GCP_SA_KEY")
     if gcp_sa_key is not None:
@@ -33,10 +36,33 @@ ee.Initialize(**{
     "credentials": get_ee_credentials(),
     "project": gee_project,
 })
+'''
+from google.oauth2 import service_account
+
+def get_ee_credentials():
+    service_account_path = Path("private_key.json")  # or wherever your key file is
+    if service_account_path.exists():
+        with open(service_account_path) as f:
+            key_json = json.load(f)
+        service_account_email = key_json["client_email"]
+        print(f"Logging into Earth Engine using service account: {service_account_email}")
+        return ee.ServiceAccountCredentials(
+            service_account_email,
+            key_file=str(service_account_path)
+        )
+    else:
+        raise FileNotFoundError(f"Service account file not found at: {service_account_path}")
+
+# Initialize EE with service account credentials
+ee.Initialize(
+    credentials=get_ee_credentials(),
+    project=gee_projectid #"cropmapping-365811"
+)
+
 
 # -------------------- CONFIG --------------------
 GEE_IMAGE_ID = image_asset_id
-OUTPUT_DIR = f"[root]data/rwanda_2022_seasonA_tiles"
+OUTPUT_DIR = f'{root}{filename}_tiles'#f"[root]data/rwanda_2022_seasonA_tiles"
 TILE_SIZE_PIXELS = 256  # Fixed tile size
 RESOLUTION = 10  # Meters per pixel
 CRS = "EPSG:4326"
