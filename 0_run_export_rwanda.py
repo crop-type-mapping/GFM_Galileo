@@ -11,8 +11,8 @@ print('Necessary libraries imported')
 
 # Parameters
 root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/'
-syear = 2019
-eyear = 2020
+syear = 2018
+eyear = 2019
 season = 'A'
 start = date(syear, 9, 1)
 end = date(eyear, 1, 31)

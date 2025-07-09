@@ -2,8 +2,8 @@
 import timeit
 start_time = timeit.default_timer()
 # -------------------- PARAMETERS --------------------
-season = 'B'
-eyear = 2025
+season = 'A'
+eyear = 2021
 filename = f'Rwanda_{season}{eyear}'
 gee_projectpath = "projects/cropmapping-365811"
 gee_projectid = "cropmapping-365811"
