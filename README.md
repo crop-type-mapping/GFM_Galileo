@@ -26,6 +26,11 @@ conda activate galileo-env
 
 ## Dataset Preparation
 
+### Step 0: Configure GEE
+- Place GEE service account key in the root directory in json format.
+- Configure the ee.batch.Export.image.toAsset() function in eo.py to your corresonding GEE assetid
+- Configure the name of project ID in EE_PROJECT vairable inside src/data/config.py to match project id name.
+
 ### Step 1: Export Sentinel-1/2 Data from Earth Engine
 
 Use the script below to export Sentinel-1/ Sentinel-2 images over your area of interest for specific session (Season A or Season B):
@@ -57,9 +62,6 @@ This script will:
 - Save `.npz` patch datasets for `train`, `val`, and `test` splits
 
 ### Folder Structure Example
-- Place GEE service account key in the root directory in json format.
-- Configure the ee.batch.Export.image.toAsset() function in eo.py to your corresonding GEE assetid
-- Configure the name of project ID in EE_PROJECT vairable inside src/data/config.py to match project id name.
 
 ```
 data/
