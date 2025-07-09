@@ -4,7 +4,7 @@ start_time = timeit.default_timer()
 # -------------------- PARAMETERS --------------------
 season = 'A'
 eyear = 2021
-filename = f'Rwanda_{season}{eyear}'
+filename = f'Nyagatare_{season}{eyear}'
 gee_projectpath = "projects/cropmapping-365811"
 gee_projectid = "cropmapping-365811"
 asset_folder = "rwanda"
