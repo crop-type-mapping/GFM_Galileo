@@ -42,6 +42,14 @@ SPLIT_RATIOS = {"train": 0.7, "val": 0.2, "test": 0.1}
 SEED = 42
 random.seed(SEED)
 
+import shutil
+
+# Remove OUTPUT_DIR if it exists, then recreate
+if os.path.exists(OUTPUT_DIR):
+    shutil.rmtree(OUTPUT_DIR)
+os.makedirs(OUTPUT_DIR)
+
+# Create split subdirectories
 for split in SPLIT_RATIOS:
     os.makedirs(os.path.join(OUTPUT_DIR, split), exist_ok=True)
 

@@ -2,21 +2,20 @@ import timeit
 start_time = timeit.default_timer()
 import argparse
 import os
-import sys
 from pathlib import Path
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from torchmetrics.classification import MulticlassJaccardIndex
 
 from src.data.dataset import PixelwisePatchDataset
 from src.galileo import Encoder
 from src.data.utils import construct_galileo_input
 
-steps = 5 #Equivalent to the number of months in a year
-nbands = 12 # Number of bands in the images ingested
+nsteps = 5 # number of months or steps
+nbands = 12 # Number of bands
 class PixelwisePatchClassifier(nn.Module):
     def __init__(self, encoder: nn.Module, num_classes: int, freeze_encoder: bool = True):
         super().__init__()
@@ -34,7 +33,7 @@ class PixelwisePatchClassifier(nn.Module):
 
     def encode_features(self, x):
         B, C, H, W = x.shape
-        x = x.view(B, steps, nbands, H, W).permute(0, 1, 3, 4, 2).contiguous()
+        x = x.view(B, nsteps, nbands, H, W).permute(0, 1, 3, 4, 2).contiguous()
         inputs = []
 
         for b in range(B):
@@ -64,11 +63,11 @@ class PixelwisePatchClassifier(nn.Module):
 
     def forward(self, x):
         feats = self.encode_features(x)
-        while feats.dim() > steps:
+        while feats.dim() > nsteps:
             feats = feats.squeeze(1)
         feats = feats[:, -1, :, :, :]  # [B, H, W, C]
         feats = feats.permute(0, 3, 1, 2).contiguous()  # [B, C, H, W]
-        return self.classifier(feats)  # [B, num_classes, H, W]
+        return self.classifier(feats)
 
 
 def compute_class_weights(dataset, num_classes):
@@ -82,22 +81,6 @@ def compute_class_weights(dataset, num_classes):
     weights = 1.0 / (class_counts + 1e-6)
     weights /= weights.sum()
     return weights
-
-
-def compute_mIoU(preds, targets, num_classes, ignore_index=255):
-    ious = []
-    for cls in range(num_classes):
-        if cls == ignore_index:
-            continue
-        pred_cls = (preds == cls)
-        target_cls = (targets == cls)
-        intersection = (pred_cls & target_cls).sum().item()
-        union = (pred_cls | target_cls).sum().item()
-        if union == 0:
-            continue
-        iou = intersection / union
-        ious.append(iou)
-    return sum(ious) / len(ious) if ious else 0.0
 
 
 def train(args):
@@ -117,9 +100,12 @@ def train(args):
     weights = compute_class_weights(train_dataset, num_classes).to(args.device)
     criterion = nn.CrossEntropyLoss(ignore_index=255, weight=weights)
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3, verbose=True)
 
     os.makedirs(args.save_dir, exist_ok=True)
     best_val_miou = 0.0
+
+    val_miou_metric = MulticlassJaccardIndex(num_classes=num_classes, ignore_index=255).to(args.device)
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -138,6 +124,7 @@ def train(args):
                 continue
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
 
             total_loss += loss.item()
@@ -146,21 +133,26 @@ def train(args):
             total += (mask != 255).sum().item()
 
         train_acc = correct / total
-        print(f"[Epoch {epoch}] Train Loss = {total_loss:.4f}, Accuracy = {train_acc:.4f}")
-
-        # Validation with mIoU
         model.eval()
-        total_miou = 0.0
+        val_correct, val_total = 0, 0
+        val_miou_metric.reset()
+
         with torch.no_grad():
             for x, mask in val_loader:
                 x, mask = x.to(args.device), mask.to(args.device)
                 logits = model(x)
                 logits = F.interpolate(logits, size=mask.shape[1:], mode="bilinear", align_corners=False)
                 preds = logits.argmax(dim=1)
-                total_miou += compute_mIoU(preds, mask, num_classes)
+                val_correct += ((preds == mask) & (mask != 255)).sum().item()
+                val_total += (mask != 255).sum().item()
+                val_miou_metric.update(preds, mask)
 
-        mean_miou = total_miou / len(val_loader)
-        print(f"[Epoch {epoch}] Train Loss = {total_loss:.4f}, Train Acc = {train_acc:.4f}, Val mIoU = {mean_miou:.4f}")
+        val_acc = val_correct / val_total
+        mean_miou = val_miou_metric.compute().item()
+        scheduler.step(mean_miou)
+
+        print(f"[Epoch {epoch}] LR: {optimizer.param_groups[0]['lr']:.6f}, Train Loss = {total_loss:.4f}, "
+              f"Train Acc = {train_acc:.4f}, Val Acc = {val_acc:.4f}, Val mIoU = {mean_miou:.4f}")
 
         if mean_miou > best_val_miou:
             best_val_miou = mean_miou
@@ -181,3 +173,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     train(args)
+print("Done! Elapsed time (hours):", (timeit.default_timer() - start_time) / 3600.0)
