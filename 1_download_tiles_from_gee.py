@@ -2,14 +2,15 @@
 import timeit
 start_time = timeit.default_timer()
 # -------------------- PARAMETERS --------------------
-season = 'A'
-eyear = 2021
-filename = f'Nyagatare_{season}{eyear}'
+season = 'B'
+eyear = 2025
+district = 'Musanze'
+filename = f'{district}_{season}{eyear}'
 gee_projectpath = "projects/cropmapping-365811"
 gee_projectid = "cropmapping-365811"
 asset_folder = "rwanda"
 image_asset_id = f"{gee_projectpath}/assets/{asset_folder}/{filename}"
-root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/'
+root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/'
 # -------------------- EE AUTH --------------------
 import os
 import json

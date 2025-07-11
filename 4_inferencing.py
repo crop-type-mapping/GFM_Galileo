@@ -9,6 +9,7 @@ from tqdm import tqdm
 import torch.nn.functional as F
 from rasterio.merge import merge
 import rasterio.mask
+from rasterio.warp import reproject, Resampling
 from src.galileo import Encoder
 from src.data.utils import construct_galileo_input
 #from pixel_wise_train_classifier import PixelwisePatchClassifier
@@ -228,38 +229,78 @@ with rasterio.open(final_output_path, "w", **profile) as dst:
 
 print(f"[INFO] Merged prediction saved to: {final_output_path}")
 
-###MASK OUT NON CROP AREAS===========================================
-# Load the mask raster
+###MASK OUT NON CROP AREAS from classification===========================================
+# ───────────────────────────────────────────────────────────────
+# 1. Load mask raster
+# ───────────────────────────────────────────────────────────────
 with rasterio.open(mask_raster_path) as mask_src:
-    mask_data = mask_src.read(1)  # single band
+    mask_data      = mask_src.read(1)          # single band
     mask_transform = mask_src.transform
-    mask_crs = mask_src.crs
-    mask_bounds = mask_src.bounds
-# --- Mask merged label image using ESA_crop_lands.tif ---
+    mask_crs       = mask_src.crs
+
+# ───────────────────────────────────────────────────────────────
+# 2. Load (merged) label raster
+# ───────────────────────────────────────────────────────────────
 with rasterio.open(final_output_path) as label_src:
-    merged_labels = label_src.read(1)  # shape [H, W]
-    label_profile = label_src.profile
+    merged_labels  = label_src.read(1)         # shape [H, W]
+    label_profile  = label_src.profile
+    label_shape    = merged_labels.shape
+    label_crs      = label_profile["crs"]
+    label_transform= label_profile["transform"]
 
-# Check if CRS/transform match
-if mask_crs != label_profile["crs"] or mask_transform != label_profile["transform"]:
-    raise ValueError("Mask raster CRS or resolution does not match the label raster. Reproject it first.")
+# ───────────────────────────────────────────────────────────────
+# 3. Ensure mask matches label CRS / grid; reproject if necessary
+# ───────────────────────────────────────────────────────────────
+if (mask_crs != label_crs) or (mask_transform != label_transform):
+    print("[INFO] Mask CRS/grid differs from labels – reprojecting mask…")
 
-# Ensure mask and label shapes match
+    mask_reproj = np.empty(label_shape, dtype=mask_data.dtype)
+
+    reproject(
+        source        = mask_data,
+        destination   = mask_reproj,
+        src_transform = mask_transform,
+        src_crs       = mask_crs,
+        dst_transform = label_transform,
+        dst_crs       = label_crs,
+        resampling    = Resampling.nearest   # preserve integer mask values
+    )
+
+    mask_data      = mask_reproj
+    mask_crs       = label_crs
+    mask_transform = label_transform
+else:
+    print("[INFO] Mask already aligned with labels – no reprojection needed.")
+
+# ───────────────────────────────────────────────────────────────
+# 4. Shape check (defensive)
+# ───────────────────────────────────────────────────────────────
 if mask_data.shape != merged_labels.shape:
-    raise ValueError(f"Mask shape {mask_data.shape} doesn't match merged label shape {merged_labels.shape}.")
+    raise ValueError(
+        f"Post‑reprojection mask shape {mask_data.shape} ≠ label shape {merged_labels.shape}"
+    )
 
-# Apply mask: set to ignore_value (e.g., 255) where mask == 0
+# ───────────────────────────────────────────────────────────────
+# 5. Apply mask to labels (set to ignore_value where mask == 0)
+# ───────────────────────────────────────────────────────────────
 masked_labels = merged_labels.copy()
 masked_labels[mask_data == 0] = ignore_value
 
-# Save masked label raster
-label_profile.update(dtype="uint8")
+# ───────────────────────────────────────────────────────────────
+# 6. Save masked label raster
+# ───────────────────────────────────────────────────────────────
+label_profile.update(dtype="uint8",
+                    compress='deflate',
+                    tiled=True,
+                    nodata=ignore_value
+                    )
 
 with rasterio.open(masked_label_output_path, "w", **label_profile) as dst:
     dst.write(masked_labels.astype(np.uint8), 1)
 
 print(f"[INFO] Masked labels saved to: {masked_label_output_path}")
 
+####================================
 # --- Merge probability tiles ---
 prob_tile_paths = sorted(output_folder.glob("*_probs.tif"))
 print(f"[INFO] Found {len(prob_tile_paths)} probability tiles to merge.")

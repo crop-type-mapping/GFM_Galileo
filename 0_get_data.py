@@ -10,7 +10,8 @@ from src.data.earthengine.eo import EarthEngineExporter
 print('Necessary libraries imported')
 
 # Parameters
-root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/'
+root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/'
+district = 'Nyabihu'
 syear = 2020
 eyear = 2021
 season = 'A'
@@ -18,10 +19,7 @@ start = date(syear, 9, 1)
 end = date(eyear, 1, 31)
 
 # Load the shapefile
-gdf = gpd.read_file(f"{root}data/shapefiles/rwa_adm2_selected_districts.shp")
-
-# Filter for 'Nyagatare' polygon
-district = 'Musanze'
+gdf = gpd.read_file(f"{root}shapefiles/rwa_adm2_selected_districts.shp")
 nyagatare_gdf = gdf[gdf['ADM2_EN'] == district]
 
 if nyagatare_gdf.empty:
