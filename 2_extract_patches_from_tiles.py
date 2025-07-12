@@ -13,19 +13,19 @@ from sklearn.model_selection import train_test_split
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
 
-print('Libraries initialized successfully')
-district = 'Musanze' #Name of the district being classified
+print('Libraries initialized successfully') #district = 'Musanze' #Name of the district being classified
 # --------------------- CONFIG --------------------- 
 root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/'
+#Add shapefile and correspond image to extract training data
 TILE_ROOTS = {
-    "2020_RWA_WAPOR_POLY_111_MERGED_SEASONA_Nyagatare": f"{root}data/{district}_A2020_tiles",
-    "2021_RWA_WAPOR_POLY_111_MERGED_SEASONB_Nyagatare": f"{root}data/{district}_B2021_tiles",
-    "Nyagatare_A2019": f"{root}data/{district}_A2019_tiles",
-    "Nyagatare_A2020": f"{root}data/{district}_A2020_tiles",
-    "Nyagatare_A2021": f"{root}data/{district}_A2021_tiles",
-    "Nyagatare_B2019": f"{root}data/{district}_B2019_tiles",
-    "Nyagatare_B2020": f"{root}data/{district}_B2020_tiles",
-    "Nyagatare_B2021": f"{root}data/{district}_B2021_tiles",
+    "2020_RWA_WAPOR_POLY_111_MERGED_SEASONA_Nyagatare": f"{root}data/Nyagatare_A2020_tiles",
+    "2021_RWA_WAPOR_POLY_111_MERGED_SEASONB_Nyagatare": f"{root}data/Nyagatare_B2021_tiles",
+    "Nyagatare_A2019": f"{root}data/Nyagatare_A2019_tiles",
+    "Nyagatare_A2020": f"{root}data/Nyagatare_A2020_tiles",
+    "Nyagatare_A2021": f"{root}data/Nyagatare_A2021_tiles",
+    "Nyagatare_B2019": f"{root}data/Nyagatare_B2019_tiles",
+    "Nyagatare_B2020": f"{root}data/Nyagatare_B2020_tiles",
+    "Nyagatare_B2021": f"{root}data/Nyagatare_B2021_tiles",
 }
 
 SHAPEFILE_DIR = f"{root}data/shapefiles"
@@ -38,7 +38,7 @@ IGNORE_VALUE = 255
 SKIP_SINGLE_CLASS_PATCHES = False
 NUM_WORKERS  = multiprocessing.cpu_count() - 10
 
-SPLIT_RATIOS = {"train": 0.7, "val": 0.3, "test": 0.0}
+SPLIT_RATIOS = {"train": 0.7, "val": 0.2, "test": 0.1}
 SEED = 42
 random.seed(SEED)
 

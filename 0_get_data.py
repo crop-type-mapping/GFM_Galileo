@@ -11,12 +11,12 @@ print('Necessary libraries imported')
 
 # Parameters
 root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/'
-district = 'Nyabihu'
-syear = 2020
-eyear = 2021
-season = 'A'
-start = date(syear, 9, 1)
-end = date(eyear, 1, 31)
+district = 'Ruhango'
+syear = 2025
+eyear = 2025
+season = 'B'
+start = date(syear, 2, 1)
+end = date(eyear, 6, 30)
 
 # Load the shapefile
 gdf = gpd.read_file(f"{root}shapefiles/rwa_adm2_selected_districts.shp")

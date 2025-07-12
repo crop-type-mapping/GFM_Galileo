@@ -16,6 +16,8 @@ from src.data.utils import construct_galileo_input
 
 nsteps = 5 # number of months or steps
 nbands = 12 # Number of bands
+modelWeightsName = 'Musanze_model.pt'
+
 class PixelwisePatchClassifier(nn.Module):
     def __init__(self, encoder: nn.Module, num_classes: int, freeze_encoder: bool = True):
         super().__init__()
@@ -156,7 +158,7 @@ def train(args):
 
         if mean_miou > best_val_miou:
             best_val_miou = mean_miou
-            torch.save(model.state_dict(), os.path.join(args.save_dir, "best_model.pt"))
+            torch.save(model.state_dict(), os.path.join(args.save_dir, modelWeightsName))
             print(f"[INFO] Best model saved based on mIoU = {mean_miou:.4f}")
 
 

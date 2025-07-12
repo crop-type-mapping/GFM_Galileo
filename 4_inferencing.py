@@ -2,6 +2,7 @@ import timeit
 start_time = timeit.default_timer()
 import os
 import torch
+import torch.nn as nn
 import rasterio
 import numpy as np
 from pathlib import Path
@@ -12,15 +13,18 @@ import rasterio.mask
 from rasterio.warp import reproject, Resampling
 from src.galileo import Encoder
 from src.data.utils import construct_galileo_input
+from osgeo import gdal
+import os
+from pathlib import Path
 #from pixel_wise_train_classifier import PixelwisePatchClassifier
 #from finetune_gfm_3 import PixelwisePatchClassifier
 
 # --- SETTINGS ---
 root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/'
-district = "Nyagatare"
+district = "Musanze"
 eyear = 2025
 season = "B"
-tile_folder = Path(f"{root}/Nyagatare_B2025_tiles/")
+tile_folder = Path(f"{root}/{district}_B2025_tiles/")
 output_folder = Path(f"{root}outputs/output_tiles/")
 output_folder.mkdir(parents=True, exist_ok=True)
 final_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_labels.tif"
@@ -300,51 +304,86 @@ with rasterio.open(masked_label_output_path, "w", **label_profile) as dst:
 
 print(f"[INFO] Masked labels saved to: {masked_label_output_path}")
 
-####================================
-# --- Merge probability tiles ---
+# ------------------------------------------------------------------
+# 1. Merge probability tiles: Gather probability tiles
+# ------------------------------------------------------------------
 prob_tile_paths = sorted(output_folder.glob("*_probs.tif"))
 print(f"[INFO] Found {len(prob_tile_paths)} probability tiles to merge.")
 
-srcs_probs = [rasterio.open(p) for p in prob_tile_paths]
-mosaic_probs, out_transform_probs = merge(srcs_probs, method='mean')  # [C, H, W]
+if len(prob_tile_paths) == 0:
+    raise RuntimeError("No *_probs.tif files found!")
 
-# Use profile from the first probability tile
-prob_profile = srcs_probs[0].profile
+# ------------------------------------------------------------------
+# 2. Build a VRT that references all tiles (allows overlaps)
+# ------------------------------------------------------------------
+tmp_vrt_path = output_folder / "tmp_probs.vrt"
 
-prob_profile.update({
-    "height": mosaic_probs.shape[1],
-    "width": mosaic_probs.shape[2],
-    "transform": out_transform_probs,
-    "count": num_classes,
-    "dtype": "float32",
-    "compress": "LZW",
-    "driver": "GTiff",
-    "nodata": np.nan  # Optional: only if you want NaN as no-data
-})
+vrt = gdal.BuildVRT(
+    str(tmp_vrt_path),
+    [str(p) for p in prob_tile_paths],
+    options=gdal.BuildVRTOptions(resampleAlg="nearest", addAlpha=False)
+)
+vrt.FlushCache()
 
-with rasterio.open(final_prob_output_path, "w", **prob_profile) as dst:
-    dst.write(mosaic_probs.astype(np.float32))
+# ------------------------------------------------------------------
+# 3. Warp (flatten) the VRT to a GeoTIFF, averaging overlaps
+# ------------------------------------------------------------------
+gdal.Warp(
+    destNameOrDestDS=str(final_prob_output_path),
+    srcDSOrSrcDSTab=str(tmp_vrt_path),
+    format="GTiff",
+    options=gdal.WarpOptions(
+        resampleAlg="average",          # <-- averages overlapping pixels
+        dstNodata="nan",                # keep NaN as nodata (float32)
+        creationOptions=[
+            "COMPRESS=DEFLATE",         # better for float32
+            "PREDICTOR=3",
+            "TILED=YES"
+        ]
+    )
+)
 
 print(f"[INFO] Merged probabilities saved to: {final_prob_output_path}")
 
-####MASK OUT NON CROP LANDS from probabilities
-# Reproject the mask to match mosaic_probs shape and resolution if needed
-if mask_crs != prob_profile["crs"] or mask_transform != prob_profile["transform"]:
-    raise ValueError("Mask raster CRS or resolution does not match the probability mosaic. Reproject it first.")
+# ------------------------------------------------------------------
+# clean up temporary VRT
+# ------------------------------------------------------------------
+try:
+    os.remove(tmp_vrt_path)
+except OSError:
+    pass
 
-# Ensure mask and mosaic_probs have the same shape
-mosaic_shape = mosaic_probs.shape[1:]  # (H, W)
-if mask_data.shape != mosaic_shape:
-    raise ValueError(f"Mask shape {mask_data.shape} doesn't match merged probability shape {mosaic_shape}.")
+# ------------------------------------------------------------------
+# Load merged probability raster
+# ------------------------------------------------------------------
+with rasterio.open(final_prob_output_path) as prob_src:
+    mosaic_probs = prob_src.read()  # shape: [C, H, W]
+    prob_profile = prob_src.profile
+    prob_crs = prob_src.crs
+    prob_transform = prob_src.transform
+    prob_shape = mosaic_probs.shape[1:]  # (H, W)
 
-# Apply mask: set all probabilities to np.nan where mask == 0
+# ------------------------------------------------------------------
+# Validate shape
+# ------------------------------------------------------------------
+if mask_data.shape != prob_shape:
+    raise ValueError(f"[ERROR] Mask shape {mask_data.shape} doesn't match probability mosaic shape {prob_shape}.")
+
+# ------------------------------------------------------------------
+# Apply mask — set all probabilities to np.nan where mask == 0
+# ------------------------------------------------------------------
 masked_probs = mosaic_probs.copy()
 masked_probs[:, mask_data == 0] = np.nan
 
-# Save masked probability mosaic
+# ------------------------------------------------------------------
+# STEP 6: Save masked probability raster
+# ------------------------------------------------------------------
+prob_profile.update(dtype="float32", nodata=np.nan)
+
 with rasterio.open(masked_prob_output_path, "w", **prob_profile) as dst:
     dst.write(masked_probs.astype(np.float32))
 
 print(f"[INFO] Masked probabilities saved to: {masked_prob_output_path}")
+
 
 print("Done! Elapsed time (hours):", (timeit.default_timer() - start_time) / 3600.0)

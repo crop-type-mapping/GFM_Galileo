@@ -88,7 +88,18 @@ python finetune_rwanda.py \
   --epochs 50 \
   --lr 0.0001
 ```
+To run in server background.
 
+```
+ nohup python 3_finetune_gfm.py \
+  --data_dir /cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/patches/ \
+  --encoder_ckpt models/nano/ \
+  --save_dir /cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/checkpoints/ \
+  --batch_size 8 \
+  --epochs 50 \
+  --lr 0.0001 \
+  > finetune.log 2>&1 &
+```
 ## Inference
 
 Run inference on prepared raster tiles:
