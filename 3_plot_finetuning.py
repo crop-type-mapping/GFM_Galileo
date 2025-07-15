@@ -5,8 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # --- Load and parse the log file ---
-log_file = 'finetune_no2025.log'  # <-- Replace with your actual log file path
-output_filename = 'results/Galileo_training_without2025.png'
+log_file = 'finetune_with_2025.log'  # <-- Replace with your actual log file path
+output_filename = 'results/Galileo_training_with2025.png'
 
 pattern = re.compile(
     r"\[Epoch (\d+)\] LR: ([0-9.]+), Train Loss = ([0-9.]+), Train Acc = ([0-9.]+), Val Acc = ([0-9.]+), Val mIoU = ([0-9.]+)"

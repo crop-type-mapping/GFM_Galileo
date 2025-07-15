@@ -21,27 +21,27 @@ from pathlib import Path
 
 # --- SETTINGS ---
 root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/'
-district = "Musanze"
+district = "Nyabihu"
 eyear = 2025
 season = "B"
 tile_folder = Path(f"{root}/{district}_B2025_tiles/")
-output_folder = Path(f"{root}outputs/output_tiles/")
+output_folder = Path(f"{root}outputs/{district}_tiles_with2025/")
 output_folder.mkdir(parents=True, exist_ok=True)
-final_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_labels.tif"
-masked_label_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_masked_labels.tif"#"outputs/merged_prediction_masked.tif"
-final_prob_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_probs.tif"
-masked_prob_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_masked_probs.tif"
+final_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_labels_with2025.tif"
+masked_label_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_masked_labels_with2025.tif"#"outputs/merged_prediction_masked.tif"
+final_prob_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_probs_with2025.tif"
+masked_prob_output_path = f"{root}outputs/{district}_{season}{eyear}_merged_masked_probs_with2025.tif"
 
 # Path to binary mask raster (0 and 1(retain value)
-mask_raster_path = "/home/bkenduiywo/Classification/ESA_crop_lands.tif"
+mask_raster_path = f"{root}ESA_crop_lands.tif"
 
 encoder_ckpt = "models/nano/"
-model_ckpt = "/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/checkpoints/best_model.pt" #Model directory
+model_ckpt = "/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/checkpoints/gfm_model_with_2025.pt" #Model directory
 
 patch_size = 8
 stride = 4
 device = "cuda" if torch.cuda.is_available() else "cpu"
-num_classes = 4
+num_classes = 5 #XXXXX
 ignore_value = 255
 confidence_threshold = 0.0
 nsteps = 5 #number of months or steps

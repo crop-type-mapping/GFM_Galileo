@@ -825,7 +825,7 @@ class CustomPatchDataset(Dataset):
 
 
 class PixelwisePatchDataset(Dataset):
-    def __init__(self, root_dir, split="train", transform=None, ignore_index=255, valid_labels={0, 1, 2, 3}):
+    def __init__(self, root_dir, split="train", transform=None, ignore_index=255, valid_labels=None):
         """
         Pixel-wise labeled dataset for segmentation.
 
@@ -834,24 +834,25 @@ class PixelwisePatchDataset(Dataset):
             split (str): One of ['train', 'val', 'test'].
             transform (callable, optional): Optional transform to apply to (image, label).
             ignore_index (int): Label used to ignore pixels during loss computation.
-            valid_labels (set): Set of valid raw label values to keep.
+            valid_labels (set, optional): Set of valid raw label values to keep.
         """
         assert split in ["train", "val", "test"], "Split must be one of ['train', 'val', 'test']"
         self.data_dir = os.path.join(root_dir, split)
         self.transform = transform
         self.ignore_index = ignore_index
 
+        if valid_labels is None:
+            valid_labels = {0, 1, 2, 3}
+        self.valid_labels = valid_labels
+
         self.files = [f for f in os.listdir(self.data_dir) if f.endswith(".npz")]
         if not self.files:
             raise RuntimeError(f"No .npz files found in {self.data_dir}")
 
         # Map raw labels to 0-based indices
-        self.label2idx = {label: idx for idx, label in enumerate(sorted(valid_labels))}
+        self.label2idx = {label: idx for idx, label in enumerate(sorted(self.valid_labels))}
         self.idx2label = {v: k for k, v in self.label2idx.items()}
         self.num_classes = len(self.label2idx)
-
-        #print(f"[DEBUG] Dataset initialized: {split} - {len(self.files)} samples")
-        #print(f"[DEBUG] Label mapping: {self.label2idx}")
 
     def __len__(self):
         return len(self.files)
@@ -869,13 +870,8 @@ class PixelwisePatchDataset(Dataset):
         for raw_label, mapped_index in self.label2idx.items():
             label_mask[raw_mask == raw_label] = mapped_index
 
-        #print(f"[DEBUG] Unique mapped labels (after remap): {np.unique(label_mask)}")
-
         if self.transform:
             image, label_mask = self.transform(image, label_mask)
-
-        # Final sanity check before returning
-        #print(f"[DEBUG] Final image tensor shape: {image.shape}, label tensor shape: {label_mask.shape}")
 
         return torch.tensor(image, dtype=torch.float32), torch.tensor(label_mask, dtype=torch.long)
 

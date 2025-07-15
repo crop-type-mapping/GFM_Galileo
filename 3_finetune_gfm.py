@@ -1,3 +1,14 @@
+'''
+To run the model in server backgroung
+ nohup python 3_finetune_gfm.py \
+  --data_dir /cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/patches/ \
+  --encoder_ckpt models/nano/ \
+  --save_dir /cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/checkpoints/ \
+  --batch_size 8 \
+  --epochs 50 \
+  --lr 0.0001 \
+  > finetune_with_2025.log  2>&1 &
+'''
 import timeit
 start_time = timeit.default_timer()
 import argparse
@@ -16,7 +27,7 @@ from src.data.utils import construct_galileo_input
 
 nsteps = 5 # number of months or steps
 nbands = 12 # Number of bands
-modelWeightsName = 'Musanze_model.pt'
+modelWeightsName = 'gfm_model_with_2025.pt'
 
 class PixelwisePatchClassifier(nn.Module):
     def __init__(self, encoder: nn.Module, num_classes: int, freeze_encoder: bool = True):
@@ -87,11 +98,11 @@ def compute_class_weights(dataset, num_classes):
 
 def train(args):
     print(f"[INFO] Loading datasets from: {args.data_dir}")
-    train_dataset = PixelwisePatchDataset(root_dir=args.data_dir, split="train")
-    val_dataset = PixelwisePatchDataset(root_dir=args.data_dir, split="val")
+    train_dataset = PixelwisePatchDataset(root_dir=args.data_dir, split="train", valid_labels = {0, 1, 2, 3, 4})
+    val_dataset = PixelwisePatchDataset(root_dir=args.data_dir, split="val", valid_labels = {0, 1, 2, 3, 4})
 
     num_classes = train_dataset.num_classes
-    print(f"[INFO] Number of classes: {num_classes}")
+    print(f"[INFO] Number of classes: {num_classes}", flush =True)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)

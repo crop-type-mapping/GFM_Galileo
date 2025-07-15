@@ -16,8 +16,12 @@ import multiprocessing
 print('Libraries initialized successfully') #district = 'Musanze' #Name of the district being classified
 # --------------------- CONFIG --------------------- 
 root = '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/'
-#Add shapefile and correspond image to extract training data
+#Add name of shapefile without extension and corresponding image tiles folder name to extract training data
 TILE_ROOTS = {
+    "RWA_B2025_Merge_v1_TrainSet": f"{root}data/Ruhango_B2025_tiles",
+    "RWA_B2025_Merge_v1_TrainSet": f"{root}data/Musanze_B2025_tiles",
+    "RWA_B2025_Merge_v1_TrainSet": f"{root}data/Nyabihu_B2025_tiles",
+    "RWA_B2025_Merge_v1_TrainSet": f"{root}data/Nyagatare_B2025_tiles",
     "2020_RWA_WAPOR_POLY_111_MERGED_SEASONA_Nyagatare": f"{root}data/Nyagatare_A2020_tiles",
     "2021_RWA_WAPOR_POLY_111_MERGED_SEASONB_Nyagatare": f"{root}data/Nyagatare_B2021_tiles",
     "Nyagatare_A2019": f"{root}data/Nyagatare_A2019_tiles",
@@ -30,7 +34,7 @@ TILE_ROOTS = {
 
 SHAPEFILE_DIR = f"{root}data/shapefiles"
 LABEL_COLUMN = "code"
-VALID_LABELS = {0, 1, 2, 3}
+VALID_LABELS = {0, 1, 2, 3, 4} #CHANGE XXXXX
 OUTPUT_DIR = f"{root}data/patches"
 PATCH_SIZE = 8
 STRIDE = 4

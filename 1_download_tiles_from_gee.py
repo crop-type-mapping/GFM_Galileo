@@ -4,7 +4,7 @@ start_time = timeit.default_timer()
 # -------------------- PARAMETERS --------------------
 season = 'B'
 eyear = 2025 #B2019
-district = 'Nyabihu'
+district = 'Ruhango'
 filename = f'{district}_{season}{eyear}'
 gee_projectpath = "projects/cropmapping-365811"
 gee_projectid = "cropmapping-365811"
