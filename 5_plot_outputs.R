@@ -1,14 +1,14 @@
 library(terra)
-threshold <- 0.5
-district = 'Nyabihu'
+threshold <- 0.6
+district = 'Nyagatare'
 season = 'B'
 eyear = '2025'
 nodata = 255
-nclasses = 4
+nclasses = 5
 path <- '/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/outputs/'
 root <- '/home/bkenduiywo/GFM_Galileo/results/' 
-#labels <- rast(paste0(path,district,'_',season,eyear,'_merged_masked_probs.tif'))
-probs <- rast(paste0(path,district,'_',season,eyear,'_merged_masked_probs.tif'))
+#labels <- rast(paste0(path,district,'_',season,eyear,'_merged_masked_probs.tif')) #/cluster01/Projects/USA_IDA_AICCRA/1.Data/FINAL/Galileo/data/outputs/Nyagatare_B2025_merged_masked_labels_with2025.tif
+probs <- rast(paste0(path,district,'_',season,eyear,'_merged_masked_probs_with2025.tif')) #Nyagatare_B2025_merged_masked_labels_with2025
 out_label <- sprintf("%s%s_%s%s_merged_masked_labels_%.2f.tif",
                      path, district, season, eyear, threshold)
 ###Apply probability threshold to class probability
@@ -45,8 +45,8 @@ cat("[✓] Land-cover map saved to:", out_label, "\n")
 # Display map and compute area
 #=============================================================
 freq(labels)
-classnames <- c('Bean', 'Irish Potato', 'Maize', 'Rice')  # 0-3 and 255
-class_colors <- c("#55FF00","#732600", "#FFD400" , "#00A9E6")  # match exactly
+classnames <- c('Bean', 'Irish Potato', 'Maize', 'Rice', 'Bean and Maize')  # 0-3 and 255
+class_colors <- c("#55FF00","#732600", "#FFD400" , "#00A9E6", "#7B68EE")  # match exactly #9ACD32
 # Display function
 
 
@@ -61,6 +61,33 @@ output_file <- paste0(root,district,'_',season,eyear,'_merged_labels.png')
 png(filename = output_file, width = 8.2, height = 6.6, units = "in", res = 300)
 display(labels, "Finetuned Galileo GFM")
 dev.off()
+
+######Display 2: OPTIONAL 
+library(tmap)
+map_raster <- raster::raster(labels)  # Convert from SpatRaster to RasterLayer
+# Assign labels to raster values (assuming 0:4 = classes)
+levels(map_raster) <- data.frame(ID = 0:4, class = classnames)
+#output_file <- paste0(root, district, '_', season, eyear, '_tmapped_labels.png')
+
+tmap_mode("plot")  # use static map rendering
+
+tm <- tm_shape(map_raster) +
+  tm_raster(style = "cat", palette = class_colors, labels = classnames, title = "Class") +
+  tm_layout(
+    title = "Finetuned Galileo GFM Classification",
+    title.size = 1.2,
+    title.position = c("center", "top"),
+    legend.outside = TRUE,
+    frame = TRUE,
+    legend.title.size = 1,
+    legend.text.size = 0.9
+  ) +
+  tm_scale_bar(position = c("left", "bottom")) +
+  tm_compass(type = "arrow", position = c("left", "top"))
+
+# Save as high-resolution PNG
+tmap_save(tm, filename = output_file, width = 8.2, height = 6.6, units = "in", dpi = 300)
+
 
 #####
 # -------------------- compute per‑class area --------------------
